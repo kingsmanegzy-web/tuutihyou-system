@@ -35,6 +35,8 @@ if 'character_count' not in st.session_state:
     st.session_state.character_count = config.get_default_character_count()
 if 'grade_level' not in st.session_state:
     st.session_state.grade_level = "低学年"
+if 'multiselect_key' not in st.session_state:
+    st.session_state.multiselect_key = 0
 
 # サイドバー
 with st.sidebar:
@@ -240,8 +242,13 @@ with tab1:
         "児童の特徴・キーワードを選択してください",
         options=all_keywords,
         default=valid_default_keywords,
+        key=f"keyword_select_{st.session_state.multiselect_key}",
         help="複数選択可能です"
     )
+    
+    # 選択が変更されたらセッション状態を更新（連続選択を可能にする）
+    if selected_keywords != st.session_state.keywords:
+        st.session_state.keywords = selected_keywords
     
     # カスタムキーワード入力
     custom_keyword = st.text_input(
@@ -255,7 +262,9 @@ with tab1:
         custom_list = [kw.strip() for kw in custom_keyword.split(',') if kw.strip()]
         selected_keywords.extend(custom_list)
     
-    st.session_state.keywords = selected_keywords
+    # セッション状態を更新（選択が変更された場合のみ）
+    if set(selected_keywords) != set(st.session_state.keywords):
+        st.session_state.keywords = selected_keywords
     
     # クラス名と児童名の入力
     col1, col2 = st.columns(2)
@@ -348,15 +357,19 @@ with tab1:
         
         with col2:
             if st.button("💾 保存", use_container_width=True):
-                db.save_shoken(
-                    student_name or "未設定",
-                    st.session_state.keywords,
-                    st.session_state.generated_shoken,
-                    char_count,
-                    class_name or ""
-                )
-                st.success("✅ 保存しました！")
-                st.rerun()
+                try:
+                    db.save_shoken(
+                        student_name or "未設定",
+                        st.session_state.keywords,
+                        st.session_state.generated_shoken,
+                        char_count,
+                        class_name or ""
+                    )
+                    st.success("✅ 保存しました！")
+                    st.rerun()
+                except Exception as e:
+                    error_handler.handle_error(e, show_details=True)
+                    st.error("⚠️ 保存に失敗しました。エラー内容を確認してください。")
         
         with col3:
             if st.button("🔄 再生成", use_container_width=True):
