@@ -408,15 +408,16 @@ with tab2:
         st.caption(f"全{len(shoken_list)}件の所見が保存されています")
         
         for shoken in shoken_list:
-            # クラス名を表示
+            # クラス名を表示（後方互換性のため、キーの存在を確認）
             display_name = f"📝 {shoken['student_name']}"
-            if shoken['class_name']:
-                display_name += f" ({shoken['class_name']})"
+            class_name = shoken.get('class_name', '')  # キーが存在しない場合は空文字列
+            if class_name:
+                display_name += f" ({class_name})"
             display_name += f" - {shoken['created_at'][:10]}"
             
             with st.expander(display_name):
-                if shoken['class_name']:
-                    st.write(f"**クラス:** {shoken['class_name']}")
+                if class_name:
+                    st.write(f"**クラス:** {class_name}")
                 st.write(f"**キーワード:** {', '.join(shoken['keywords'])}")
                 st.write(f"**文字数:** {shoken['character_count']}文字")
                 st.write(f"**作成日時:** {shoken['created_at']}")
