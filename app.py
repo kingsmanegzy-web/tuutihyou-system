@@ -257,12 +257,22 @@ with tab1:
     
     st.session_state.keywords = selected_keywords
     
-    # 児童名（オプション）
-    student_name = st.text_input(
-        "児童名（オプション）",
-        placeholder="例: 山田太郎",
-        help="保存時に使用されます"
-    )
+    # クラス名と児童名の入力
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        class_name = st.text_input(
+            "クラス名（学年・組）",
+            placeholder="例: 3年1組",
+            help="保存時に使用されます。クラス単位で管理できます。"
+        )
+    
+    with col2:
+        student_name = st.text_input(
+            "児童名",
+            placeholder="例: 山田太郎",
+            help="保存時に使用されます"
+        )
     
     # 生成ボタン
     if st.button("🎯 所見を生成", type="primary", use_container_width=True):
@@ -342,7 +352,8 @@ with tab1:
                     student_name or "未設定",
                     st.session_state.keywords,
                     st.session_state.generated_shoken,
-                    char_count
+                    char_count,
+                    class_name or ""
                 )
                 st.success("✅ 保存しました！")
                 st.rerun()
@@ -364,7 +375,15 @@ with tab2:
         st.caption(f"全{len(shoken_list)}件の所見が保存されています")
         
         for shoken in shoken_list:
-            with st.expander(f"📝 {shoken['student_name']} - {shoken['created_at'][:10]}"):
+            # クラス名を表示
+            display_name = f"📝 {shoken['student_name']}"
+            if shoken['class_name']:
+                display_name += f" ({shoken['class_name']})"
+            display_name += f" - {shoken['created_at'][:10]}"
+            
+            with st.expander(display_name):
+                if shoken['class_name']:
+                    st.write(f"**クラス:** {shoken['class_name']}")
                 st.write(f"**キーワード:** {', '.join(shoken['keywords'])}")
                 st.write(f"**文字数:** {shoken['character_count']}文字")
                 st.write(f"**作成日時:** {shoken['created_at']}")

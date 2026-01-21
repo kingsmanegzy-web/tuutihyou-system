@@ -346,24 +346,103 @@ git push -u origin main
 
 ### ステップ4: OpenAI APIキーを設定
 
-1. **Streamlit Cloudのダッシュボードでアプリを開く**
-   - デプロイしたアプリの「Settings」をクリック
-   - または、アプリの右上の「⋮」メニュー > 「Settings」
+現在、アプリに「OpenAI APIキーが設定されていません」というエラーが表示されています。これを解決するために、Streamlit CloudのSecretsにAPIキーを設定します。
 
-2. **Secretsを設定**
-   - 左メニューから「Secrets」を選択
-   - 以下の内容を入力：
+#### 4-1: Streamlit Cloudのダッシュボードを開く
+
+1. **アプリの右上の「Manage app」ボタンをクリック**
+   - 画面の右下に「Manage app」というボタンがあります
+   - または、https://share.streamlit.io/ にアクセスして、デプロイしたアプリを選択
+
+2. **「Settings」をクリック**
+   - 左メニューまたは上部のタブから「Settings」を選択
+
+#### 4-2: Secretsを設定
+
+1. **左メニューから「Secrets」を選択**
+   - 「Settings」ページの左側に「Secrets」というメニューがあります
+
+2. **Secretsエディタに以下の内容を入力**
+
+**重要: 以下の形式を正確にコピー&ペーストしてください**
 
 ```toml
 OPENAI_API_KEY = "your-openai-api-key-here"
-APP_URL = "https://tuutihyou-system.streamlit.app"
+APP_URL = "https://tuutihyou-system-5tb77yyxm3imubsmmjagb3.streamlit.app"
 DEFAULT_CHARACTER_COUNT = 200
 OPENAI_MODEL = "gpt-3.5-turbo"
 ```
 
-3. **保存**
-   - 「Save」をクリック
-   - アプリが自動的に再デプロイされます
+**入力の注意点:**
+- 各行の最後に改行を入れてください（最後の行も含む）
+- `your-openai-api-key-here` の部分を、実際のOpenAI APIキーに置き換えてください
+- APIキーは `"` (ダブルクォート) で囲む必要があります
+- APIキーに改行が含まれていないか確認してください（1行である必要があります）
+- `APP_URL` の部分を、実際のアプリのURLに置き換えてください
+  - 現在のURL: `https://tuutihyou-system-5tb77yyxm3imubsmmjagb3.streamlit.app`
+  - このURLは、ブラウザのアドレスバーに表示されています
+
+**「Invalid format」エラーが出る場合の対処法:**
+
+1. **すべての内容を削除して、最初から入力し直す**
+   - Secretsエディタの内容をすべて選択（Ctrl+A または Cmd+A）
+   - 削除（Deleteキー）
+   - 以下の形式を1行ずつ正確に入力
+
+2. **APIキーが長い場合の確認**
+   - APIキーは1行である必要があります
+   - 改行が入っていないか確認してください
+   - コピー&ペーストの際に、余分なスペースや改行が入っていないか確認
+
+3. **引用符の確認**
+   - すべての値は `"` (ダブルクォート) で囲む必要があります
+   - シングルクォート `'` は使えません
+
+4. **正しい形式の例（コピー&ペースト用）:**
+
+```
+OPENAI_API_KEY = "sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+APP_URL = "https://tuutihyou-system-5tb77yyxm3imubsmmjagb3.streamlit.app"
+DEFAULT_CHARACTER_COUNT = 200
+OPENAI_MODEL = "gpt-3.5-turbo"
+```
+
+**入力手順（推奨）:**
+1. Secretsエディタを開く
+2. 既存の内容をすべて削除（Ctrl+A → Delete）
+3. 上記の形式を1行ずつ入力（またはコピー&ペースト）
+4. APIキーの部分だけを実際のキーに置き換える
+5. 各行の最後にEnterキーを押して改行を入れる
+6. 「Save changes」をクリック
+
+#### 4-3: 保存
+
+1. **「Save」ボタンをクリック**
+   - 画面の下部または右上に「Save」ボタンがあります
+
+2. **アプリが自動的に再デプロイされます**
+   - 数秒から1分程度かかります
+   - 再デプロイが完了すると、エラーが消えてアプリが正常に動作します
+
+#### 4-4: OpenAI APIキーを取得する方法（まだ取得していない場合）
+
+1. **OpenAIのサイトにアクセス**
+   - https://platform.openai.com/api-keys
+
+2. **ログイン**
+   - OpenAIアカウントでログイン（アカウントがない場合は新規登録）
+
+3. **APIキーを取得**
+   - 「Create new secret key」をクリック
+   - キー名を入力（例：「通知表所見ツール」）
+   - 「Create secret key」をクリック
+   - 表示されたAPIキーをコピー（後で表示されないので注意）
+
+4. **クレジットを追加（初回のみ）**
+   - 左メニューの「Billing」を選択
+   - 「Add payment method」をクリック
+   - クレジットカード情報を入力
+   - 初回は$5分（約750円相当）の無料クレジットが付与されます
 
 ---
 

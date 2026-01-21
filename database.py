@@ -39,6 +39,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS shoken (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 student_name TEXT,
+                class_name TEXT,
                 keywords TEXT,
                 content TEXT,
                 character_count INTEGER,
@@ -46,6 +47,13 @@ class Database:
                 updated_at TEXT
             )
         """)
+        
+        # 既存のテーブルにclass_nameカラムを追加（マイグレーション）
+        try:
+            cursor.execute("ALTER TABLE shoken ADD COLUMN class_name TEXT")
+        except sqlite3.OperationalError:
+            # カラムが既に存在する場合はエラーを無視
+            pass
         
         # キーワード履歴テーブル
         cursor.execute("""
@@ -72,7 +80,7 @@ class Database:
     # 所見関連メソッド
     
     def save_shoken(self, student_name: str, keywords: List[str], 
-                   content: str, character_count: int) -> int:
+                   content: str, character_count: int, class_name: str = "") -> int:
         """
         所見を保存
         
@@ -81,6 +89,7 @@ class Database:
             keywords: キーワードリスト
             content: 所見内容
             character_count: 文字数
+            class_name: クラス名（学年・組、例: "3年1組"）
             
         Returns:
             保存された所見のID
@@ -93,9 +102,9 @@ class Database:
         
         cursor.execute("""
             INSERT INTO shoken 
-            (student_name, keywords, content, character_count, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (student_name, keywords_json, content, character_count, now, now))
+            (student_name, class_name, keywords, content, character_count, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (student_name, class_name, keywords_json, content, character_count, now, now))
         
         shoken_id = cursor.lastrowid
         conn.commit()
@@ -114,7 +123,7 @@ class Database:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id, student_name, keywords, content, character_count, 
+            SELECT id, student_name, class_name, keywords, content, character_count, 
                    created_at, updated_at
             FROM shoken
             ORDER BY created_at DESC
@@ -128,6 +137,7 @@ class Database:
             result.append({
                 'id': row['id'],
                 'student_name': row['student_name'],
+                'class_name': row['class_name'] if row['class_name'] else "",
                 'keywords': json.loads(row['keywords']) if row['keywords'] else [],
                 'content': row['content'],
                 'character_count': row['character_count'],
@@ -136,6 +146,67 @@ class Database:
             })
         
         return result
+    
+    def get_shoken_by_class(self, class_name: str) -> List[Dict]:
+        """
+        指定クラスの所見を取得
+        
+        Args:
+            class_name: クラス名
+            
+        Returns:
+            所見のリスト
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, student_name, class_name, keywords, content, character_count, 
+                   created_at, updated_at
+            FROM shoken
+            WHERE class_name = ?
+            ORDER BY student_name, created_at DESC
+        """, (class_name,))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        result = []
+        for row in rows:
+            result.append({
+                'id': row['id'],
+                'student_name': row['student_name'],
+                'class_name': row['class_name'] if row['class_name'] else "",
+                'keywords': json.loads(row['keywords']) if row['keywords'] else [],
+                'content': row['content'],
+                'character_count': row['character_count'],
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
+            })
+        
+        return result
+    
+    def get_all_classes(self) -> List[str]:
+        """
+        すべてのクラス名を取得
+        
+        Returns:
+            クラス名のリスト（重複なし）
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT DISTINCT class_name
+            FROM shoken
+            WHERE class_name IS NOT NULL AND class_name != ''
+            ORDER BY class_name
+        """)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [row['class_name'] for row in rows]
     
     def get_shoken(self, shoken_id: int) -> Optional[Dict]:
         """
@@ -151,7 +222,7 @@ class Database:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id, student_name, keywords, content, character_count, 
+            SELECT id, student_name, class_name, keywords, content, character_count, 
                    created_at, updated_at
             FROM shoken
             WHERE id = ?
@@ -164,6 +235,7 @@ class Database:
             return {
                 'id': row['id'],
                 'student_name': row['student_name'],
+                'class_name': row['class_name'] if row['class_name'] else "",
                 'keywords': json.loads(row['keywords']) if row['keywords'] else [],
                 'content': row['content'],
                 'character_count': row['character_count'],
@@ -173,7 +245,7 @@ class Database:
         return None
     
     def update_shoken(self, shoken_id: int, student_name: str, 
-                     keywords: List[str], content: str, character_count: int):
+                     keywords: List[str], content: str, character_count: int, class_name: str = ""):
         """
         所見を更新
         
@@ -183,6 +255,7 @@ class Database:
             keywords: キーワードリスト
             content: 所見内容
             character_count: 文字数
+            class_name: クラス名
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -192,10 +265,10 @@ class Database:
         
         cursor.execute("""
             UPDATE shoken
-            SET student_name = ?, keywords = ?, content = ?, 
+            SET student_name = ?, class_name = ?, keywords = ?, content = ?, 
                 character_count = ?, updated_at = ?
             WHERE id = ?
-        """, (student_name, keywords_json, content, character_count, now, shoken_id))
+        """, (student_name, class_name, keywords_json, content, character_count, now, shoken_id))
         
         conn.commit()
         conn.close()
