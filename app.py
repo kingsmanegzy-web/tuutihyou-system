@@ -358,15 +358,35 @@ with tab1:
         with col2:
             if st.button("💾 保存", use_container_width=True):
                 try:
-                    db.save_shoken(
-                        student_name or "未設定",
-                        st.session_state.keywords,
-                        st.session_state.generated_shoken,
-                        char_count,
-                        class_name or ""
-                    )
+                    # 後方互換性のため、class_nameが存在するか確認
+                    import inspect
+                    sig = inspect.signature(db.save_shoken)
+                    params = list(sig.parameters.keys())
+                    
+                    if 'class_name' in params:
+                        # 新しいバージョン（class_nameパラメータあり）
+                        db.save_shoken(
+                            student_name or "未設定",
+                            st.session_state.keywords,
+                            st.session_state.generated_shoken,
+                            char_count,
+                            class_name or ""
+                        )
+                    else:
+                        # 古いバージョン（class_nameパラメータなし）
+                        db.save_shoken(
+                            student_name or "未設定",
+                            st.session_state.keywords,
+                            st.session_state.generated_shoken,
+                            char_count
+                        )
                     st.success("✅ 保存しました！")
                     st.rerun()
+                except TypeError as e:
+                    # 引数の数が合わない場合のエラー
+                    st.error("⚠️ 保存に失敗しました。最新のコードがデプロイされていない可能性があります。")
+                    st.info("💡 解決方法: 最新のコードをGitHubにプッシュして、Streamlit Cloudの再デプロイを待ってください。")
+                    error_handler.handle_error(e, show_details=True)
                 except Exception as e:
                     error_handler.handle_error(e, show_details=True)
                     st.error("⚠️ 保存に失敗しました。エラー内容を確認してください。")
