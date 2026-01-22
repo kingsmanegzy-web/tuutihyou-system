@@ -399,44 +399,175 @@ with tab1:
 with tab2:
     st.header("保存した所見一覧")
     
-    # 所見一覧を取得
-    shoken_list = db.get_all_shoken()
+    # クラス一覧を取得
+    all_classes = db.get_all_classes()
     
-    if not shoken_list:
-        st.info("📝 まだ保存された所見がありません。所見を生成して保存してください。")
-    else:
-        st.caption(f"全{len(shoken_list)}件の所見が保存されています")
-        
-        for shoken in shoken_list:
-            # クラス名を表示（後方互換性のため、キーの存在を確認）
-            display_name = f"📝 {shoken['student_name']}"
-            class_name = shoken.get('class_name', '')  # キーが存在しない場合は空文字列
-            if class_name:
-                display_name += f" ({class_name})"
-            display_name += f" - {shoken['created_at'][:10]}"
+    # 表示モードを選択
+    display_mode = st.radio(
+        "表示方法",
+        options=["クラスごとに分類", "すべて表示"],
+        horizontal=True,
+        help="クラスごとに分類すると、各クラスの所見を整理して表示します"
+    )
+    
+    if display_mode == "クラスごとに分類":
+        # クラスごとに分類して表示
+        if not all_classes:
+            st.info("📝 クラス名が設定された所見がありません。所見を保存する際にクラス名を入力してください。")
+        else:
+            # クラスごとの統計情報
+            class_stats = {}
+            all_shoken = db.get_all_shoken()
+            for shoken in all_shoken:
+                class_name = shoken.get('class_name', '') or 'クラス未設定'
+                if class_name not in class_stats:
+                    class_stats[class_name] = []
+                class_stats[class_name].append(shoken)
             
-            with st.expander(display_name):
-                if class_name:
-                    st.write(f"**クラス:** {class_name}")
-                st.write(f"**キーワード:** {', '.join(shoken['keywords'])}")
-                st.write(f"**文字数:** {shoken['character_count']}文字")
-                st.write(f"**作成日時:** {shoken['created_at']}")
-                st.divider()
-                st.text_area(
-                    "所見文",
-                    value=shoken['content'],
-                    height=150,
-                    key=f"shoken_{shoken['id']}",
-                    label_visibility="collapsed"
-                )
+            # クラスごとに表示
+            for class_name in sorted(class_stats.keys()):
+                class_shoken_list = class_stats[class_name]
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("📋 コピー", key=f"copy_{shoken['id']}"):
-                        st.write("```\n" + shoken['content'] + "\n```")
-                        st.success("✅ コピーしました！")
-                with col2:
-                    if st.button("🗑️ 削除", key=f"delete_{shoken['id']}"):
-                        db.delete_shoken(shoken['id'])
-                        st.success("✅ 削除しました！")
-                        st.rerun()
+                with st.expander(f"📚 {class_name} ({len(class_shoken_list)}件)", expanded=True):
+                    # クラスごとの統計
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("所見数", len(class_shoken_list))
+                    with col2:
+                        # CSVエクスポート
+                        import io
+                        import csv
+                        csv_buffer = io.StringIO()
+                        writer = csv.writer(csv_buffer)
+                        writer.writerow(["児童名", "クラス", "文字数", "作成日時", "所見文"])
+                        for shoken in class_shoken_list:
+                            writer.writerow([
+                                shoken['student_name'],
+                                shoken.get('class_name', ''),
+                                shoken['character_count'],
+                                shoken['created_at'],
+                                shoken['content']
+                            ])
+                        st.download_button(
+                            label=f"📥 {class_name}をCSVでエクスポート",
+                            data=csv_buffer.getvalue(),
+                            file_name=f"shoken_{class_name}.csv",
+                            mime="text/csv",
+                            key=f"export_{class_name}"
+                        )
+                    
+                    st.divider()
+                    
+                    # クラス内の所見を表示
+                    for shoken in sorted(class_shoken_list, key=lambda x: x['student_name']):
+                        with st.expander(f"📝 {shoken['student_name']} - {shoken['created_at'][:10]}", expanded=False):
+                            st.write(f"**キーワード:** {', '.join(shoken['keywords'])}")
+                            st.write(f"**文字数:** {shoken['character_count']}文字")
+                            st.write(f"**作成日時:** {shoken['created_at']}")
+                            st.divider()
+                            st.text_area(
+                                "所見文",
+                                value=shoken['content'],
+                                height=150,
+                                key=f"shoken_{shoken['id']}",
+                                label_visibility="collapsed"
+                            )
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button("📋 コピー", key=f"copy_{shoken['id']}"):
+                                    st.write("```\n" + shoken['content'] + "\n```")
+                                    st.success("✅ コピーしました！")
+                            with col2:
+                                if st.button("🗑️ 削除", key=f"delete_{shoken['id']}"):
+                                    db.delete_shoken(shoken['id'])
+                                    st.success("✅ 削除しました！")
+                                    st.rerun()
+    else:
+        # すべて表示（従来の表示方法）
+        # クラスでフィルタリング
+        if all_classes:
+            selected_class = st.selectbox(
+                "クラスでフィルタ",
+                options=["すべて"] + all_classes,
+                help="クラスを選択すると、そのクラスの所見のみ表示されます"
+            )
+            
+            if selected_class == "すべて":
+                shoken_list = db.get_all_shoken()
+            else:
+                shoken_list = db.get_shoken_by_class(selected_class)
+        else:
+            selected_class = "すべて"
+            shoken_list = db.get_all_shoken()
+        
+        if not shoken_list:
+            st.info("📝 まだ保存された所見がありません。所見を生成して保存してください。")
+        else:
+            # 統計情報を表示
+            if selected_class != "すべて":
+                st.success(f"📊 {selected_class}: {len(shoken_list)}件の所見")
+            else:
+                st.caption(f"全{len(shoken_list)}件の所見が保存されています")
+                if all_classes:
+                    st.caption(f"クラス数: {len(all_classes)}クラス")
+            
+            # CSVエクスポート機能
+            if shoken_list:
+                import io
+                import csv
+                
+                csv_buffer = io.StringIO()
+                writer = csv.writer(csv_buffer)
+                writer.writerow(["児童名", "クラス", "文字数", "作成日時", "所見文"])
+                for shoken in shoken_list:
+                    writer.writerow([
+                        shoken['student_name'],
+                        shoken.get('class_name', ''),
+                        shoken['character_count'],
+                        shoken['created_at'],
+                        shoken['content']
+                    ])
+                
+                st.download_button(
+                    label="📥 CSVでエクスポート",
+                    data=csv_buffer.getvalue(),
+                    file_name=f"shoken_{selected_class if selected_class != 'すべて' else 'all'}.csv",
+                    mime="text/csv"
+                )
+            
+            st.divider()
+            
+            for shoken in shoken_list:
+                # クラス名を表示（後方互換性のため、キーの存在を確認）
+                display_name = f"📝 {shoken['student_name']}"
+                class_name = shoken.get('class_name', '')  # キーが存在しない場合は空文字列
+                if class_name:
+                    display_name += f" ({class_name})"
+                display_name += f" - {shoken['created_at'][:10]}"
+                
+                with st.expander(display_name):
+                    if class_name:
+                        st.write(f"**クラス:** {class_name}")
+                    st.write(f"**キーワード:** {', '.join(shoken['keywords'])}")
+                    st.write(f"**文字数:** {shoken['character_count']}文字")
+                    st.write(f"**作成日時:** {shoken['created_at']}")
+                    st.divider()
+                    st.text_area(
+                        "所見文",
+                        value=shoken['content'],
+                        height=150,
+                        key=f"shoken_{shoken['id']}",
+                        label_visibility="collapsed"
+                    )
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("📋 コピー", key=f"copy_{shoken['id']}"):
+                            st.write("```\n" + shoken['content'] + "\n```")
+                            st.success("✅ コピーしました！")
+                    with col2:
+                        if st.button("🗑️ 削除", key=f"delete_{shoken['id']}"):
+                            db.delete_shoken(shoken['id'])
+                            st.success("✅ 削除しました！")
+                            st.rerun()
